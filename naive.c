@@ -9,9 +9,6 @@
 #define NCHANS 4
 #define NSAMPS 500
 
-char *transposed;
-char *page;
-
 /* Lower bound on timings by a single memcpy
  * gives ~1.19 seconds for 10 iterations, 1757 MB  /0.11s ~= 1600 MB/s
    [root@laptopjisk ~]# dmidecode -t 17
@@ -61,9 +58,10 @@ char *page;
  *  @param {int} nchannels                 Number of channels
  *  @param {int} npackets                  Number of packets per sequence
  */
-void deinterleave (const unsigned char *page, const int ntabs, const int nchannels, const int npackets) {
-  const unsigned char *packet = page;
- 
+float deinterleave (char *transposed, const char *page, const int ntabs, const int nchannels, const int npackets) {
+  const char *packet = page;
+  double start = omp_get_wtime();
+
   // and find the matching address in the transposed buffer
   int tab = 0;
   for (tab = 0; tab < ntabs; tab++) {
@@ -86,6 +84,8 @@ void deinterleave (const unsigned char *page, const int ntabs, const int nchanne
       }
     }
   }
+
+  return (float)((omp_get_wtime() - start)*1e3);
 }
 
 int main(int argc, char **argv) {
@@ -101,14 +101,14 @@ int main(int argc, char **argv) {
   size_t mysize = ntabs * nchannels * NSAMPS * npackets * NPOLS;
   printf("% 4i % 4i % 4i %6.2fMB\n", ntabs, nchannels, npackets, mysize / (1024.0*1024.0));
 
-  transposed = malloc(mysize);
-  page = malloc(mysize);
+  char *transposed = (char *)malloc(mysize);
+  char *page = (char *)malloc(mysize);
 
   double start = omp_get_wtime();
 
   int i;
   for (i=0; i<10; i++) {
-    deinterleave(page, ntabs, nchannels, npackets);
+    deinterleave(transposed, page, ntabs, nchannels, npackets);
     // memcpy(page, transposed, mysize);
   }
 
