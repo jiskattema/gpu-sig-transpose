@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <omp.h>
+
 #define NPOLS 4
 #define NCHANS 4
 #define NSAMPS 500
@@ -102,11 +104,17 @@ int main(int argc, char **argv) {
   transposed = malloc(mysize);
   page = malloc(mysize);
 
+  double start = omp_get_wtime();
+
   int i;
   for (i=0; i<10; i++) {
     deinterleave(page, ntabs, nchannels, npackets);
     // memcpy(page, transposed, mysize);
   }
+
+  double end = omp_get_wtime();
+
+  printf("time per call: %.6f ms\n", (end - start)*1e3/10.0);
 
   free(page);
   free(transposed);
