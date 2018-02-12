@@ -58,34 +58,28 @@
  *  @param {int} nchannels                 Number of channels
  *  @param {int} npackets                  Number of packets per sequence
  */
-float deinterleave (char *transposed, const char *page, const int ntabs, const int nchannels, const int npackets) {
-  const char *packet = page;
+double deinterleave(char * restrict const transposed, const char * restrict const page, const int ntabs, const int nchannels, const int npackets) {
+
   double start = omp_get_wtime();
 
   // and find the matching address in the transposed buffer
-  int tab = 0;
-  for (tab = 0; tab < ntabs; tab++) {
-    int channel_offset = 0;
-    for (channel_offset = 0; channel_offset < nchannels; channel_offset+=4) {
-      int sequence_number = 0;
-      for (sequence_number = 0; sequence_number < npackets; sequence_number++) {
-        // process packet
-        int tn,cn,pn;
-        for (tn = 0; tn < NSAMPS; tn++) {      // 500 samples per packet
-          for (cn = 0; cn < NCHANS; cn++) {    // 4 channels per packet
-            for (pn = 0; pn < NPOLS; pn++) {   // 4 poliarizations per packet
-              transposed[
-                ((tab * nchannels + cn + channel_offset) * NPOLS + pn) * npackets * NSAMPS +
-                  tn + sequence_number * NSAMPS 
-              ] = *packet;
-            }
-          }
-        }
+  const int ni = ntabs * nchannels / NCHANS;
+  const int nj = npackets * NSAMPS;
+  const int nk = NCHANS * NPOLS;
+
+  int i = 0;
+  #pragma omp parallel for
+  for (i = 0; i < ni; i++) {
+    int j;
+    for (j = 0; j < nj; j++) {
+      int k = 0;
+      for (k = 0; k < nk; k++) {
+        transposed[(i * nk + k) * nj + j] = page[(i * nj + j) * nk + k];
       }
     }
   }
 
-  return (float)((omp_get_wtime() - start)*1e3);
+  return (omp_get_wtime() - start) * 1e3;
 }
 
 int main(int argc, char **argv) {
@@ -108,13 +102,14 @@ int main(int argc, char **argv) {
 
   int i;
   for (i=0; i<10; i++) {
-    deinterleave(transposed, page, ntabs, nchannels, npackets);
+    double t_call = deinterleave(transposed, page, ntabs, nchannels, npackets);
+    printf("call %d, %.6f ms\n", i, t_call);
     // memcpy(page, transposed, mysize);
   }
 
   double end = omp_get_wtime();
 
-  printf("time per call: %.6f ms\n", (end - start)*1e3/10.0);
+  printf("Average time per call: %.6f ms\n", (end - start)*1e3/10);
 
   free(page);
   free(transposed);
