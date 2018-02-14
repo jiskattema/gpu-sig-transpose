@@ -55,16 +55,23 @@
  *  @param {int} nchannels                 Number of channels
  *  @param {int} npackets                  Number of packets per sequence
  */
-void deinterleave (const unsigned char *page, unsigned char *transposed, const int ntabs, const int nchannels, const int npackets) {
-  const unsigned char *packet = page;
+void deinterleave (const unsigned char *page, unsigned char * restrict transposed, const int ntabs, const int nchannels, const int npackets) {
  
-  // and find the matching address in the transposed buffer
+  int packets_processed = 0;
+
   int tab = 0;
   for (tab = 0; tab < ntabs; tab++) {
+
     int channel_offset = 0;
     for (channel_offset = 0; channel_offset < nchannels; channel_offset+=4) {
+
       int sequence_number = 0;
       for (sequence_number = 0; sequence_number < npackets; sequence_number++) {
+
+        // find start of packet, and increase counter
+        const unsigned char * restrict packet = &page[packets_processed * NPOLS*NCHANS*NSAMPS];
+        packets_processed++;
+
         // process packet
         int tn,cn,pn;
 #pragma omp parallel for
@@ -74,10 +81,11 @@ void deinterleave (const unsigned char *page, unsigned char *transposed, const i
               transposed[
                 ((tab * nchannels + cn + channel_offset) * NPOLS + pn) * npackets * NSAMPS +
                   tn + sequence_number * NSAMPS 
-              ] = *packet;
+              ] = packet[tn * NCHANS * NPOLS + cn * NPOLS + pn];
             }
           }
         }
+
       }
     }
   }

@@ -23,7 +23,7 @@
  *  @param {int} npackets                  Number of packets per sequence
  */
 void deinterleave (const unsigned char *page, unsigned char *transposed, const int ntabs, const int nchannels, const int npackets) {
-  const char *packet = page;
+  const unsigned char *packet = page;
 
   int tab = 0;
   for (tab = 0; tab < ntabs; tab++) {
@@ -38,6 +38,7 @@ void deinterleave (const unsigned char *page, unsigned char *transposed, const i
 
         // process packet:
         int tn;
+#pragma omp parallel for
         for (tn = 0; tn < NSAMPS; tn++) {      // 500 samples per packet
           intermediate[( 0 * NPOLS +  0) * npackets * NSAMPS + tn] = *packet++;
           intermediate[( 0 * NPOLS +  1) * npackets * NSAMPS + tn] = *packet++;
