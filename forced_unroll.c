@@ -31,7 +31,7 @@ void deinterleave (const unsigned char *page, unsigned char *transposed, const i
     int channel_offset = 0;
     for (channel_offset = 0; channel_offset < nchannels; channel_offset+=4) {
 
-      unsigned char *intermediate = &transposed[(tab * nchannels + channel_offset)*NPOLS*npackets*500];
+      unsigned char *intermediate = &transposed[(tab * nchannels + channel_offset)*NPOLS*npackets*NSAMPS];
 
       int sequence_number = 0;
       for (sequence_number = 0; sequence_number < npackets; sequence_number++) {
