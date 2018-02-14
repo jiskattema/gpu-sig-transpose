@@ -1,3 +1,8 @@
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "constants.h"
 
 /* Lower bound on timings by a single memcpy
@@ -45,24 +50,33 @@
  *   2. offline: dada_dbdisk -> ringbuffer -> dadafits
  *
  *  @param {const unsigned char *} page    Ringbuffer page with interleaved data
+ *  @param {const unsigned char *} transposed Buffer with deinterleaved data
  *  @param {int} ntabs                     Number of tabs
  *  @param {int} nchannels                 Number of channels
  *  @param {int} npackets                  Number of packets per sequence
  */
-void deinterleave(unsigned char * restrict const page, unsigned char * restrict const transposed, const int ntabs, const int nchannels, const int npackets) {
+void deinterleave (const unsigned char *page, unsigned char *transposed, const int ntabs, const int nchannels, const int npackets) {
+  const unsigned char *packet = page;
+ 
   // and find the matching address in the transposed buffer
-  const int ni = ntabs * nchannels / NCHANS;
-  const int nj = npackets * NSAMPS;
-  const int nk = NCHANS * NPOLS;
-
-  int i = 0;
-  #pragma omp parallel for
-  for (i = 0; i < ni; i++) {
-    int j;
-    for (j = 0; j < nj; j++) {
-      int k = 0;
-      for (k = 0; k < nk; k++) {
-        transposed[(i * nk + k) * nj + j] = page[(i * nj + j) * nk + k];
+  int tab = 0;
+  for (tab = 0; tab < ntabs; tab++) {
+    int channel_offset = 0;
+    for (channel_offset = 0; channel_offset < nchannels; channel_offset+=4) {
+      int sequence_number = 0;
+      for (sequence_number = 0; sequence_number < npackets; sequence_number++) {
+        // process packet
+        int tn,cn,pn;
+        for (tn = 0; tn < NSAMPS; tn++) {      // 500 samples per packet
+          for (cn = 0; cn < NCHANS; cn++) {    // 4 channels per packet
+            for (pn = 0; pn < NPOLS; pn++) {   // 4 poliarizations per packet
+              transposed[
+                ((tab * nchannels + cn + channel_offset) * NPOLS + pn) * npackets * NSAMPS +
+                  tn + sequence_number * NSAMPS 
+              ] = *packet;
+            }
+          }
+        }
       }
     }
   }
